@@ -4,8 +4,14 @@ from bs4 import BeautifulSoup
 import csv
 
 gid = sys.argv[1]
-# URL to fetch
-url = "https://attack.mitre.org/software/" + gid
+# Determine the base URL based on gid prefix
+if gid.startswith('S'):
+    url = "https://attack.mitre.org/software/" + gid
+elif gid.startswith('G'):
+    url = "https://attack.mitre.org/groups/" + gid
+else:
+    print("Invalid gid. It should start with 'S' or 'G'.")
+    sys.exit(1)
 
 # Send HTTP GET request
 response = requests.get(url)
@@ -92,40 +98,44 @@ def extract_mitigations_and_detections(response, tid, mitigation_out, detection_
 
     mitigations_header = soup.find('h2', id='mitigations')
     if mitigations_header:
-        mitigations_table = mitigations_header.find_next_sibling('div', class_='tables-mobile').find('table', class_='table table-bordered table-alternate mt-2')
+        mitigations_table = mitigations_header.find_next_sibling('div', class_='tables-mobile')
         if mitigations_table:
-            for row in mitigations_table.find_all('tr')[1:]:  # Skip header row
-                cells = row.find_all('td')
-                if len(cells) < 3:
-                    continue
-                mitigation_id_link = cells[0].find('a')
-                mitigation_id = mitigation_id_link['href'].split('/')[-1] if mitigation_id_link else "None"
-                mitigation_name_link = cells[1].find('a')
-                mitigation_name = mitigation_name_link.text.strip() if mitigation_name_link else "None"
-                description_cell = cells[2]
-                description = description_cell.find('p').text.strip() if description_cell.find('p') else ""
-                data_mitigations.append([tid, mitigation_id, mitigation_name, description])
-        else:
-            mitigation_description = mitigations_header.find_next_sibling('p').text.strip()
-            data_mitigations.append([tid, "", mitigation_description])
+            mitigations_table = mitigations_table.find('table', class_='table table-bordered table-alternate mt-2')
+            if mitigations_table:
+                for row in mitigations_table.find_all('tr')[1:]:  # Skip header row
+                    cells = row.find_all('td')
+                    if len(cells) < 3:
+                        continue
+                    mitigation_id_link = cells[0].find('a')
+                    mitigation_id = mitigation_id_link['href'].split('/')[-1] if mitigation_id_link else "None"
+                    mitigation_name_link = cells[1].find('a')
+                    mitigation_name = mitigation_name_link.text.strip() if mitigation_name_link else "None"
+                    description_cell = cells[2]
+                    description = description_cell.find('p').text.strip() if description_cell.find('p') else ""
+                    data_mitigations.append([tid, mitigation_id, mitigation_name, description])
+            else:
+                mitigation_description = mitigations_header.find_next_sibling('p').text.strip()
+                data_mitigations.append([tid, "", mitigation_description])
 
     detection_header = soup.find('h2', id='detection')
     if detection_header:
-        detection_table = detection_header.find_next_sibling('div', class_='tables-mobile').find('table', class_='table datasources-table table-bordered')
+        detection_table = detection_header.find_next_sibling('div', class_='tables-mobile')
         if detection_table:
-            for row in detection_table.find_all('tr')[1:]:  # Skip header row
-                cells = row.find_all('td')
-                id_value = cells[0].find('a')
-                data_source_value = cells[1].find('a')
-                data_component_value = cells[2].find('a')
-                detects_value = cells[3].find('p').text.strip() if cells[3].find('p') else ""
-                if id_value:
-                    id_value = id_value['href'].split('/')[-1]
-                else:
-                    id_value = "None"
-                data_source = data_source_value.text.strip() if data_source_value else "None"
-                data_component = data_component_value.text.strip() if data_component_value else ""
-                data_detections.append([tid, id_value, data_source, data_component, detects_value])
+            detection_table = detection_table.find('table', class_='table datasources-table table-bordered')
+            if detection_table:
+                for row in detection_table.find_all('tr')[1:]:  # Skip header row
+                    cells = row.find_all('td')
+                    id_value = cells[0].find('a')
+                    data_source_value = cells[1].find('a')
+                    data_component_value = cells[2].find('a')
+                    detects_value = cells[3].find('p').text.strip() if cells[3].find('p') else ""
+                    if id_value:
+                        id_value = id_value['href'].split('/')[-1]
+                    else:
+                        id_value = "None"
+                    data_source = data_source_value.text.strip() if data_source_value else "None"
+                    data_component = data_component_value.text.strip() if data_component_value else ""
+                    data_detections.append([tid, id_value, data_source, data_component, detects_value])
 
     return data_mitigations, data_detections
 
